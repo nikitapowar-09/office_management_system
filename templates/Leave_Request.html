@@ -1,0 +1,31 @@
+{% extends "admin_dashboard.html" %}
+{% block content %}
+<h2>Leave Requests</h2>
+<table border="1">
+    <tr>
+        <th>Employee</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    {% for leave in leave_requests %}
+    <tr>
+        <td>{{ leave.employee.first_name }} {{ leave.employee.last_name }}</td>
+        <td>{{ leave.start_date }}</td>
+        <td>{{ leave.end_date }}</td>
+        <td>{{ leave.reason }}</td>
+        <td>{{ leave.status }}</td>
+        <td>
+            {% if leave.status == 'Pending' %}
+                <a href="{{ url_for('approve_leave', leave_id=leave.leave_id) }}">Approve</a>
+                <a href="{{ url_for('reject_leave', leave_id=leave.leave_id) }}">Reject</a>
+            {% else %}
+                {{ leave.status }}
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

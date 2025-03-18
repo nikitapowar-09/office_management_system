@@ -1,0 +1,65 @@
+{% extends 'admin_dashboard.html' %}
+
+{% block content %}
+<div class="container d-flex justify-content-center mt-4 mb-5">  {# Added bottom margin #}
+    <div class="col-md-8 col-lg-6">
+        <h1 class="text-center">
+            {{ employee.first_name + " " + employee.last_name if employee else "New Employee" }}
+        </h1>
+        <form method="POST" class="border p-4 rounded shadow bg-white">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="first_name">First Name:</label>
+                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ employee.first_name if employee else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="last_name">Last Name:</label>
+                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ employee.last_name if employee else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="department_id">Department:</label>
+                <select name="department_id" class="form-control">
+                    {% for department in departments %}
+                        <option value="{{ department.department_id }}" {% if employee and employee.department_id == department.department_id %}selected{% endif %}>{{ department.department_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="position">Position:</label>
+                <input type="text" class="form-control" id="position" name="position" value="{{ employee.position if employee else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ employee.email if employee else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone_number">Phone Number:</label>
+                <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ employee.phone_number if employee else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="hire_date">Hire Date:</label>
+                <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ employee.hire_date.strftime('%Y-%m-%d') if employee and employee.hire_date else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address:</label>
+                <textarea class="form-control" id="address" name="address">{{ employee.address if employee else '' }}</textarea>
+            </div>
+
+            <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if employee and employee.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="is_active">Active</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Save</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

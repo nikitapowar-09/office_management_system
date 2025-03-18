@@ -1,0 +1,40 @@
+{% extends "admin_dashboard.html" %}
+
+{% block content %}
+
+<!-- Meeting Form -->
+<div class="card p-4 mt-3">
+    <h3>Schedule a Meeting</h3>
+    <form method="POST">
+        
+        <div class="mb-3">
+            <label class="form-label">Meeting Title:</label>
+            <input type="text" class="form-control" name="title" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Date & Time:</label>
+            <input type="datetime-local" class="form-control" name="date_time" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Location:</label>
+            <input type="text" class="form-control" name="location" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Attendees:</label>
+            <select class="form-control" name="attendees" multiple>
+                {% for employee in employees %}
+                    <option value="{{ employee.employee_id }}">
+                        {{ employee.first_name }} {{ employee.last_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Schedule Meeting</button>
+    </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "employee_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Mark Attendance</h2>
+    <div class="card p-3 bg-secondary text-light">
+        <p><strong>Date:</strong> {{ attendance.date if attendance else "Not marked yet" }}</p>
+        <p><strong>Time In:</strong> {{ attendance.time_in if attendance else "Not checked in" }}</p>
+        <p><strong>Time Out:</strong> {{ attendance.time_out if attendance else "Not checked out" }}</p>
+        
+        <form method="POST">
+            {% if not attendance %}
+                <button type="submit" name="action" value="check-in" class="btn btn-success w-100">Check-In</button>
+            {% elif not attendance.time_out %}
+                <button type="submit" name="action" value="check-out" class="btn btn-danger w-100">Check-Out</button>
+            {% else %}
+                <button class="btn btn-secondary w-100" disabled>Attendance Complete</button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

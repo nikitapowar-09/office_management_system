@@ -1,0 +1,40 @@
+{% extends 'admin_dashboard.html' %}
+
+{% block content %}
+    <h1 class="text-center">Employee List</h1>
+    
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Department</th>
+                <th>Position</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td>{{ employee.first_name }}</td>
+                <td>{{ employee.last_name }}</td>
+                <td>{{ employee.department.department_name if employee.department else 'N/A' }}</td>
+                <td>{{ employee.position }}</td>
+                <td>{{ employee.email }}</td>
+                <td>
+                    <a href="{{ url_for('employee_edit', employee_id=employee.employee_id) }}" class="btn btn-sm btn-primary">Edit</a>
+                    <a href="{{ url_for('employee_delete', employee_id=employee.employee_id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this employee?')">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="mb-3">
+        <a href="{{ url_for('employee_create') }}" class="btn btn-primary">Add New Employee</a>
+    </div>
+{% endblock %}
+
+{% block header %}{{ super() }}{% endblock %}
+{% block footer %}{{ super() }}{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "employee_dashboard.html" %}
+{% block content %}
+<h2>Meetings</h2>
+<table border="1">
+    <tr>
+        <th>Title</th>
+        <th>Date & Time</th>
+        <th>Location</th>
+        <th>Organizer</th>
+        <th>Actions</th>
+    </tr>
+    {% for meeting in meetings %}
+    <tr>
+        <td>{{ meeting.title }}</td>
+        <td>{{ meeting.date_time }}</td>
+        <td>{{ meeting.location }}</td>
+        <td>{{ meeting.organizer_id }}</td>
+        <td>
+            <a href="{{ url_for('join_meeting', meeting_id=meeting.meeting_id) }}">Join</a>
+            {% if current_user.is_admin %}
+                | <a href="{{ url_for('delete_meeting', meeting_id=meeting.meeting_id) }}">Delete</a>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% if current_user.is_admin %}
+    <a href="{{ url_for('schedule_meeting') }}">Schedule a New Meeting</a>
+{% endif %}
+{% endblock %}

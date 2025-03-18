@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body >
+    <nav class="navbar navbar-expand-lg bg-dark navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="#">My Attendance</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Task</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="modal" href="#" data-bs-target="#notesModal">Sticky Notes</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Notifications</a></li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Action</a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">Settings</a></li>
+                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="offcanvas" href="#offcanvasRight">
+                            <i class="bi bi-list"></i> Menu
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Right Offcanvas Menu -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body bg-dark text-white">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link text-light" href="#">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="#">Task Management</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="/attendance">Mark Attendance</a></li>
+                
+                <li class="nav-item"><a class="nav-link text-light" href="">Leave Application</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="#">Payroll Details</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="#">Company Announcements</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="#">Reports</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <h1 class="text-center">Welcome, {{ current_user.username }}!</h1>
+        <div class="container mt-4">
+            
+                <!-- Attendance Section -->
+                <div class="d-flex justify-content-center">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h4>Attendance</h4>
+                            <form action="#" method="POST">
+                                <button type="submit" class="btn btn-success w-100">Check-In</button>
+                            </form>
+                            <form action="#" method="POST" class="mt-2">
+                                <button type="submit" class="btn btn-danger w-100">Check-Out</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                </div><br>
+                <!-- Pending Tasks Section -->
+                <div class="d-flex justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4>Pending Tasks</h4>
+                            <ul class="list-group">
+                                {% if tasks %}
+                                    {% for task in tasks %}
+                                        <li class="list-group-item">{{ task.title }} - Due {{ task.due_date.strftime('%d %b %Y') }}</li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="list-group-item">No pending tasks</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            
+        
+            <div class="row mt-4">
+                <!-- Scheduled Meetings Section -->
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3>My Scheduled Meetings</h3>
+                            <table class="table table-striped table-bordered text-center">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Title</th>
+                                        <th>Date & Time</th>
+                                        <th>Location</th>
+                                        <th>Organizer</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for meeting in meetings %}
+                                        <tr>
+                                            <td>{{ loop.index }}</td>
+                                            <td>{{ meeting.title }}</td>
+                                            <td>{{ meeting.date_time.strftime('%d %b, %I:%M %p') }}</td>
+                                            <td>{{ meeting.location }}</td>
+                                            <td>{{ meeting.organizer.first_name }} {{ meeting.organizer.last_name }}</td>
+                                            <td>
+                                                <button class="btn btn-primary">Join</button>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+           
+            
+        </div>
+    </div>
+
+    <!-- Bootstrap Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
