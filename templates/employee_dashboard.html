@@ -48,7 +48,7 @@
         </div>
         <div class="offcanvas-body bg-dark text-white">
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link text-light" href="#">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="/employee_dashboard">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="#">Task Management</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="/attendance">Mark Attendance</a></li>
                 
@@ -146,6 +146,59 @@
         </div>
     </div>
 
+<!-- Notes Modal -->
+<div class="modal fade" id="notesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📝 Manage Notes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="notesList" class="list-group mb-3"></ul>
+                <input type="text" id="noteInput" class="form-control" placeholder="Enter a new note">
+                <button class="btn btn-success mt-2" onclick="addNote()">Add Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Notes Functionality -->
+<script>
+    // Function to add a new note
+    function addNote() {
+        let noteInput = document.getElementById("noteInput");
+        let noteText = noteInput.value.trim();
+        
+        if (noteText === "") {
+            alert("Please enter a note!");
+            return;
+        }
+
+        let notesList = document.getElementById("notesList");
+
+        // Create list item
+        let listItem = document.createElement("li");
+        listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+        listItem.innerHTML = `
+            ${noteText}
+            <button class="btn btn-danger btn-sm" onclick="deleteNote(this)">Delete</button>
+        `;
+
+        notesList.appendChild(listItem);
+        noteInput.value = ""; // Clear input after adding
+    }
+
+    // Function to delete a note
+    function deleteNote(button) {
+        button.parentElement.remove();
+    }
+</script>
+
+{% block footer %}
+<footer class="bg-dark text-white text-center py-1 fixed-bottom ">
+  <p>© 2025 Your Company. All Rights Reserved.</p>
+</footer>{% endblock %}
     <!-- Bootstrap Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
