@@ -297,7 +297,8 @@ def employee_dashboard():
 @app.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_create():
-    departments = Department.query.all() #Get departments for dropdown
+    departments = Department.query.all()  # Get departments for dropdown
+    
     if request.method == 'POST':
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -309,7 +310,16 @@ def employee_create():
         address = request.form['address']
         is_active = True if 'is_active' in request.form else False
 
+        # ✅ Auto-generate username if not provided
+        username = request.form.get('username')
+        if not username:
+            username = email.split('@')[0]  # Example: 'nikitapowar217'
+
+        password_hash = generate_password_hash("defaultpassword")  # Securely hash password
+
+        # ✅ Create Employee with username
         new_employee = Employee(
+            username=username,  # 🔹 Ensure username is not NULL
             first_name=first_name,
             last_name=last_name,
             department_id=department_id,
@@ -320,11 +330,24 @@ def employee_create():
             address=address,
             is_active=is_active
         )
-        new_employee.set_username()
+        
         try:
             db.session.add(new_employee)
-            db.session.flush()
-            db.session.commit()
+            db.session.flush()  # Flush to get employee_id
+            
+            # ✅ Create User for the Employee
+            new_user = User(
+                username=username,  # 🔹 Ensure User also has a username
+                email=email,
+                password_hash=password_hash,
+                role="employee",
+                is_verified=True,
+                employee_id=new_employee.employee_id  # Use correct foreign key
+            )
+            
+            db.session.add(new_user)
+            db.session.commit()  # Commit both Employee and User
+            
             flash('Employee created successfully!', 'success')
             return redirect(url_for('employee_list'))
         except Exception as e:
@@ -332,6 +355,7 @@ def employee_create():
             flash(f'Error creating employee: {e}', 'danger')
 
     return render_template('employee_form.html', departments=departments)
+
 
 @app.route('/employees/edit/<int:employee_id>', methods=['GET', 'POST'])
 @login_required
