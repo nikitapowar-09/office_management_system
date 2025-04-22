@@ -111,51 +111,66 @@ def login():
         else:
             flash('Incorrect password.', 'danger')
 
-    return render_template('login.html', user=None)     
+    return render_template('login.html', user=None)   
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    employees = Employee.query.all()
+    # Fetch employees who do not have an associated user account
+    employees = Employee.query.filter(~Employee.user.has()).all()
+
     if request.method == 'POST':
         username = request.form.get('username')
-        email = request.form.get('email')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         role = request.form.get('role')
         employee_id = request.form.get('employee_id') if role == 'employee' else None  
 
+        # Ensure valid role selection
         if role not in ['admin', 'employee']:
             flash('Invalid role selected.', 'danger')
             return render_template('signup.html', employees=employees)
 
+        # Ensure username is unique
         if User.query.filter_by(username=username).first():
             flash('Username already exists.', 'danger')
             return render_template('signup.html', employees=employees)
 
-        if User.query.filter_by(email=email).first():
-            flash('Email already exists.', 'danger')
-            return render_template('signup.html', employees=employees)
-
+        # Ensure password confirmation
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
             return render_template('signup.html', employees=employees)
 
+        # Employee-specific checks
         if role == 'employee':
             if not employee_id:
                 flash('Employee ID is required for employee role.', 'danger')
                 return render_template('signup.html', employees=employees)
 
+            # Fetch employee from DB
             employee = Employee.query.get(employee_id)
             if not employee:
                 flash('Invalid Employee ID.', 'danger')
                 return render_template('signup.html', employees=employees)
 
-            if User.query.filter_by(employee_id=employee_id).first():
+            # Check if employee is already linked to a user
+            if employee.user is not None:
                 flash('Employee already has a user account.', 'danger')
                 return render_template('signup.html', employees=employees)
 
+            # Use employee's email for the user account
+            email = employee.email
+        else:
+            email = request.form.get('email')
+
+            # Ensure email is unique
+            if User.query.filter_by(email=email).first():
+                flash('Email already exists.', 'danger')
+                return render_template('signup.html', employees=employees)
+
+        # Generate verification token
         verification_token = User.generate_verification_token()
-        
+
+        # Create new user entry only after all checks pass
         new_user = User(
             username=username, 
             email=email, 
@@ -163,22 +178,24 @@ def signup():
             employee_id=employee_id, 
             email_verification_token=verification_token
         )
-        
-        new_user.set_password(password)  # Store the actual user password
+
+        new_user.set_password(password)  # Store hashed password
         db.session.add(new_user)
 
+        # Link user to employee if applicable
         if role == 'employee':
-            employee.user = new_user  # Ensure employee is linked
+            employee.user = new_user  
 
         db.session.commit()
 
-        send_verification_email(email, verification_token)  
+        send_verification_email(email, verification_token)
 
         flash('Signup successful! Please check your email to verify your account.', 'success')
         return redirect(url_for('verify_email_page'))  
 
-    return render_template('signup.html', employees=employees)     
+    return render_template('signup.html', employees=employees)
 
+# Function to send a verification email
 def send_verification_email(user_email, token):
     verification_url = f"http://localhost:5000/verify_email/{token}"
     msg = Message(
@@ -293,11 +310,10 @@ def admin_dashboard():
 def employee_dashboard():
     print(f"Employee Dashboard - Current User: {current_user.email}, Role: {current_user.role}")  # Debugging
     return render_template('employee_dashboard.html')
-
 @app.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_create():
-    departments = Department.query.all()  # Get departments for dropdown
+    departments = Department.query.all()
     
     if request.method == 'POST':
         first_name = request.form['first_name']
@@ -310,16 +326,20 @@ def employee_create():
         address = request.form['address']
         is_active = True if 'is_active' in request.form else False
 
+        # ✅ Check if the employee already has a user account
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('Employee already has a user account.', 'danger')
+            return redirect(url_for('employee_create'))  # Redirect to form
+
         # ✅ Auto-generate username if not provided
-        username = request.form.get('username')
-        if not username:
-            username = email.split('@')[0]  # Example: 'nikitapowar217'
+        username = request.form.get('username', email.split('@')[0])  
 
-        password_hash = generate_password_hash("defaultpassword")  # Securely hash password
+        password_hash = generate_password_hash("defaultpassword")  
 
-        # ✅ Create Employee with username
+        # ✅ Create Employee
         new_employee = Employee(
-            username=username,  # 🔹 Ensure username is not NULL
+            username=username,  
             first_name=first_name,
             last_name=last_name,
             department_id=department_id,
@@ -337,16 +357,16 @@ def employee_create():
             
             # ✅ Create User for the Employee
             new_user = User(
-                username=username,  # 🔹 Ensure User also has a username
+                username=username,  
                 email=email,
                 password_hash=password_hash,
                 role="employee",
                 is_verified=True,
-                employee_id=new_employee.employee_id  # Use correct foreign key
+                employee_id=new_employee.employee_id  # Link to Employee
             )
             
             db.session.add(new_user)
-            db.session.commit()  # Commit both Employee and User
+            db.session.commit()  
             
             flash('Employee created successfully!', 'success')
             return redirect(url_for('employee_list'))
@@ -355,7 +375,6 @@ def employee_create():
             flash(f'Error creating employee: {e}', 'danger')
 
     return render_template('employee_form.html', departments=departments)
-
 
 @app.route('/employees/edit/<int:employee_id>', methods=['GET', 'POST'])
 @login_required
