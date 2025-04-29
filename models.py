@@ -97,7 +97,9 @@ class Meeting(db.Model):
     title = db.Column(db.String(255), nullable=False)
     date_time = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(255), nullable=False)
-    organizer_id = db.Column(db.Integer, db.ForeignKey('employee.employee_id'), nullable=False)
+    link = db.Column(db.String(255))
+    organizer_id = db.Column(db.Integer, db.ForeignKey('admin.admin_id'), nullable=False)
+
     attendees = db.relationship('MeetingAttendee', backref='meeting', lazy='dynamic')
 
 class MeetingAttendee(db.Model):

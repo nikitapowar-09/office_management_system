@@ -1,28 +1,66 @@
 {% extends "admin_dashboard.html" %}
 {% block content %}
+<style>
+h2{text-align: center;}
+table {
+  margin: 30px auto;
+  width: 80%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 150px;
+}
+table thead th {
+  background-color: black;
+  color: #fff;
+  padding: 12px;
+  font-size: 18px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+table tbody td {
+  padding: 12px;
+  text-align: center;
+  font-size: 16px;
+  color: #333;
+  border: 1px solid #ddd;
+}
+table tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+table tbody tr:nth-child(even) {
+  background-color: #eafaea;
+}
+table tbody tr:hover {
+  background-color: #d3f9d8;
+}
+</style>
 <div class="container mt-4">
     <h2>Employee Attendance Records</h2>
-    <table class="table table-dark table-striped">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Employee ID</th>
-                <th>Date</th>
-                <th>Check In </th>
-                <th>Check Out</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in attendance_records %}
-            <tr>
-                <td>{{ record.attendance_id }}</td>
-                <td>{{ record.employee_id }}</td>
-                <td>{{ record.date }}</td>
-                <td>{{ record.time_in }}</td>
-                <td>{{ record.time_out if record.time_out else 'Not Checked Out' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    <div ><table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Employee ID</th>
+                    <th>Date</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in attendance_records %}
+                <tr>
+                    <td>{{ record.attendance_id }}</td>
+                    <td>{{ record.employee_id }}</td>
+                    <td>{{ record.date.strftime('%Y-%m-%d') if record.date else 'N/A' }}</td>
+                    <td>{{ record.time_in.strftime('%H:%M:%S') if record.time_in else 'Not Checked In' }}</td>
+                    <td>{{ record.time_out.strftime('%H:%M:%S') if record.time_out else 'Not Checked Out' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            </table>
+        
+    </div>
 {% endblock %}

@@ -7,8 +7,9 @@ from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from itsdangerous import URLSafeTimedSerializer
 import smtplib
+from sqlalchemy.orm import joinedload
 from flask_mail import Mail, Message
-from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token
+from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token,send_email
 from datetime import datetime, timedelta
 import re,os
 import uuid
@@ -382,14 +383,23 @@ def employee_delete(employee_id):
 @app.route('/attendance', methods=['GET', 'POST'])
 @login_required
 def mark_attendance():
-    first_name, last_name = current_user.username.split(" ", 1)  # Splits "John Doe" into "John", "Doe"
+    try:
+        first_name, last_name = current_user.username.split(" ", 1)
+    except ValueError:
+        first_name = current_user.username
+        last_name = ""
+
     employee = Employee.query.filter_by(username=current_user.username).first()
+    if not employee:
+        flash("Employee record not found.", "danger")
+        return redirect(url_for('index'))
+
     today = datetime.utcnow().date()
     attendance = Attendance.query.filter_by(employee_id=employee.employee_id, date=today).first()
 
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'check-in' and not attendance:
             new_attendance = Attendance(
                 employee_id=employee.employee_id,
@@ -406,75 +416,64 @@ def mark_attendance():
             flash("Checked out successfully!", "success")
 
         else:
-            flash("Invalid action!", "danger")
+            flash("Invalid action or already marked!", "warning")
 
         return redirect(url_for('mark_attendance'))
 
-    return render_template('attendance.html', attendance=attendance)
+    return render_template('Emp_Attendance.html', attendance=attendance)
 
-# Admin Dashboard (View Attendance)
 @app.route('/admin/attendance')
 @login_required
 def admin_attendance():
-    if current_user.role != 'admin':
+    if getattr(current_user, 'role', None) != 'admin':
         flash("Unauthorized Access!", "danger")
         return redirect(url_for('index'))
 
-    attendance_records = Attendance.query.all()
+    attendance_records = Attendance.query.order_by(Attendance.date.desc()).all()
     return render_template('admin_attendance.html', attendance_records=attendance_records)
 
-#meetings
-@app.route('/admin/meetings', methods=['GET', 'POST'])
-@login_required
-def admin_meetings():
+#-----------------meetings---------------------
+from datetime import datetime
+
+@app.route('/schedule_meeting', methods=['GET', 'POST'])
+def schedule_meeting():
     if request.method == 'POST':
+        title = request.form.get('title')
+        date_time_str = request.form.get('date_time')
+        location = request.form.get('location')
+        attendee_ids = request.form.getlist('attendees')
+
+        if not title or not date_time_str or not location:
+            return "Missing required fields", 400
+
+        # Convert string to datetime object
         try:
-            title = request.form['title']
-            date_time = datetime.strptime(request.form['date_time'], '%Y-%m-%dT%H:%M')
-            location = request.form['location']
-            organizer_id = current_user.employee_id
-            attendees = request.form.getlist('attendees')  # List of selected employee IDs
+            date_time = datetime.strptime(date_time_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return "Invalid date format", 400
 
-            # Create and save new meeting
-            new_meeting = Meeting(title=title, date_time=date_time, location=location, organizer_id=organizer_id)
-            db.session.add(new_meeting)
-            db.session.flush()  # Flush to get the meeting ID before committing
-            
-            print(f"New Meeting Created: {new_meeting.title}, ID: {new_meeting.meeting_id}")  # Debugging
+        fake_link = "https://fakemeetinglink.com"
+        organizer_id = session.get('admin_id')
+        if not organizer_id:
+            return "Organizer (admin) not logged in", 403
 
-            # Assign attendees and send notifications
-            if attendees:
-                for employee_id in attendees:
-                    existing_attendee = MeetingAttendee.query.filter_by(
-                        meeting_id=new_meeting.meeting_id, employee_id=employee_id
-                    ).first()
-                    
-                    if not existing_attendee:  # Avoid duplicates
-                        attendee = MeetingAttendee(meeting_id=new_meeting.meeting_id, employee_id=employee_id)
-                        db.session.add(attendee)
+        meeting = Meeting(title=title, date_time=date_time, location=location, link=fake_link, organizer_id=organizer_id)
+        db.session.add(meeting)
+        db.session.commit()
 
-                        # Fetch employee email and send notification
-                        employee = Employee.query.get(employee_id)
-                        if employee:
-                            send_meeting_notification(employee.email, new_meeting)
+        for emp_id in attendee_ids:
+            employee = Employee.query.get(emp_id)
+            if employee:
+                attendee = MeetingAttendee(meeting_id=meeting.id, employee_id=employee.employee_id)
+                db.session.add(attendee)
 
-            db.session.commit()
-            flash('Meeting scheduled successfully, and notifications sent!', 'success')
+                send_email(employee.email, f"{employee.first_name} {employee.last_name}", title, date_time, fake_link)
 
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error scheduling meeting: {str(e)}', 'danger')
+        db.session.commit()
+        return redirect(url_for('admin_dashboard'))
 
-        return redirect(url_for('admin_meetings'))  # Refresh the page to reflect new meetings
-
-    # Fetch all employees and scheduled meetings with attendees
     employees = Employee.query.all()
-    meetings = Meeting.query.options(
-        joinedload(Meeting.attendees).joinedload(MeetingAttendee.employee)
-    ).order_by(Meeting.date_time.asc()).all()  # Sorted by date
-
-    return render_template('scheduled_meeting.html', employees=employees, meetings=meetings)
-
+    return render_template('scheduled_meeting.html', employees=employees)
 
 @app.route('/employee/meetings')
 @login_required
@@ -533,7 +532,7 @@ def view_leave_status():
     leaves = AdminLeaveApproval.query.filter_by(employee_id=employee_id).order_by(AdminLeaveApproval.leave_date.desc()).all()
     return render_template('view_leave_status.html', leaves=leaves)
 
-# -------------------- ADMIN SIDE --------------------
+# -------------------- ADMIN - Leave--------------------
 
 @app.route('/manage_leaves')
 @login_required

@@ -9,6 +9,40 @@ def generate_temp_password(length=10):
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
+#-----------------meeting----------
+def send_email(to_email, name, subject, time, link):
+    from_email = "nikitapowar09@gmail.com"
+    password = 'thfo xepy sauu ynnt'
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(from_email, password)
+
+        message = f"""\ 
+Subject: Meeting Invitation
+
+Hi {name},
+
+You are invited to a meeting.
+Topic: {subject}
+Time: {time}
+Link: {link}
+
+Regards,
+Admin
+"""
+        server.sendmail(from_email, to_email, message)
+        server.quit()
+        print(f"Email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send email to {to_email}: {e}")
+        return False
+
+#--------logincredentials----------------
 def send_login_email(email, username, password):
     from config import mail
     """Sends login credentials to employee via email"""

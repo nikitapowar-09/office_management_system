@@ -51,7 +51,7 @@
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('employee_dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="#">Task Management</a></li>
-                <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('mark_attendance')}}">Mark Attendance</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="/attendance">Mark Attendance</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('leave_form') }}">Leave Application</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('view_leave_status') }}">Leave Status</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('employee_meetings') }}">Meetings</a></li>
@@ -61,87 +61,49 @@
             </ul>
         </div>
     </div>
-
-    <!-- Main Content -->
-    <div class="container mt-4">
-        <h1 class="text-center">Welcome, {{ current_user.username }}!</h1>
-       
-            
+{% block content %}
+<div class="row mt-4">
+    <!-- Scheduled Meetings Section -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h3>My Scheduled Meetings</h3>
+                <table class="table table-striped table-bordered text-center">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Date & Time</th>
+                            <th>Location</th>
+                            <th>Organizer</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for meeting in meetings %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ meeting.title }}</td>
+                                <td>{{ meeting.date_time.strftime('%d %b, %I:%M %p') }}</td>
+                                <td>{{ meeting.location }}</td>
+                                <td>{{ meeting.organizer.first_name }} {{ meeting.organizer.last_name }}</td>
+                                <td>
+                                    <button class="btn btn-primary">Join</button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 
-                <!-- Pending Tasks Section -->
-                <div class="d-flex justify-content-center">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-body">
-                            <h4>Pending Tasks</h4>
-                            <ul class="list-group">
-                                {% if tasks %}
-                                    {% for task in tasks %}
-                                        <li class="list-group-item">{{ task.title }} - Due {{ task.due_date.strftime('%d %b %Y') }}</li>
-                                    {% endfor %}
-                                {% else %}
-                                    <li class="list-group-item">No pending tasks</li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                </div> 
-        </div>
-        
-           
-            
-        </div>
-    </div>
-
-<!-- Notes Modal -->
-<div class="modal fade" id="notesModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">📝 Manage Notes</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <ul id="notesList" class="list-group mb-3"></ul>
-                <input type="text" id="noteInput" class="form-control" placeholder="Enter a new note">
-                <button class="btn btn-success mt-2" onclick="addNote()">Add Note</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript for Notes Functionality -->
-<script>
-    // Function to add a new note
-    function addNote() {
-        let noteInput = document.getElementById("noteInput");
-        let noteText = noteInput.value.trim();
-        
-        if (noteText === "") {
-            alert("Please enter a note!");
-            return;
-        }
-
-        let notesList = document.getElementById("notesList");
-
-        // Create list item
-        let listItem = document.createElement("li");
-        listItem.className = "list-group-item d-flex justify-content-between align-items-center";
-        listItem.innerHTML = `
-            ${noteText}
-            <button class="btn btn-danger btn-sm" onclick="deleteNote(this)">Delete</button>
-        `;
-
-        notesList.appendChild(listItem);
-        noteInput.value = ""; // Clear input after adding
-    }
-
-    // Function to delete a note
-    function deleteNote(button) {
-        button.parentElement.remove();
-    }
-</script>
+{% if current_user.is_admin %}
+    <a href="{{ url_for('schedule_meeting') }}">Schedule a New Meeting</a>
+{% endif %}
+{% endblock %}
 
 {% block footer %}
 <footer class="bg-dark text-white text-center py-1 fixed-bottom ">

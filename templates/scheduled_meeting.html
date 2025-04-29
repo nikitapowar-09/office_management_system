@@ -4,8 +4,11 @@
 
 <!-- Meeting Form -->
 <div class="card p-4 mt-3">
-    <h3>Schedule a Meeting</h3>
-    <form method="POST">
+    <h3 style="text-align: center;">Schedule a Meeting</h3>
+    <div class="container d-flex justify-content-center align-items-center mt-4     ">
+        <div class="col-md-6 shadow-lg p-4 rounded">
+    <form method="POST" action="{{ url_for('schedule_meeting') }}">
+
         
         <div class="mb-3">
             <label class="form-label">Meeting Title:</label>
@@ -35,6 +38,8 @@
 
         <button type="submit" class="btn btn-primary">Schedule Meeting</button>
     </form>
+        </div>
+    </div>
 </div>
 
 {% endblock %}

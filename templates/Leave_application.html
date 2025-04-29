@@ -52,7 +52,7 @@
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('employee_dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="#">Task Management</a></li>
-                <li class="nav-item"><a class="nav-link text-light" href="/attendance">Mark Attendance</a></li>
+                <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('mark_attendance')}}">Mark Attendance</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('leave_form') }}">Leave Application</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('view_leave_status') }}">Leave Status</a></li>
                 <li class="nav-item"><a class="nav-link text-light" href="#">Payroll Details</a></li>
