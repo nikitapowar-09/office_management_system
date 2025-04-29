@@ -1,7 +1,7 @@
 {% extends "employee_dashboard.html" %}
 {% block content %}
 <h2>Apply for Leave</h2>
-<form method="POST">
+    <form action="/request_holiday" method="POST">
     <label>Start Date:</label>
     <input type="date" name="start_date" required><br>
 
@@ -13,4 +13,6 @@
 
     <button type="submit">Submit Request</button>
 </form>
+<a href="{{ url_for('view_leave_status') }}" class="btn btn-primary" style="background-color: green; color: white; height: 50px; width: 200px; border-radius: 5px; display: block; margin: 0 auto;margin-bottom: 20px; text-align: center; line-height: 50px;">Check Status</a>
+
 {% endblock %}

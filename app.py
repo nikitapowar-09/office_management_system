@@ -8,11 +8,12 @@ from flask_wtf.csrf import CSRFProtect
 from itsdangerous import URLSafeTimedSerializer
 import smtplib
 from flask_mail import Mail, Message
+from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token
 from datetime import datetime
 import re,os
 import uuid
 from email.mime.text import MIMEText
-from models import db, Employee, Department, User, Project, Task, Meeting, MeetingAttendee, Attendance, Notification, Admin  # Import your models
+from models import db, Employee, Department, User, Project, Task, Meeting, MeetingAttendee, Attendance, Notification, Admin, AdminLeaveApproval 
 
 def create_app():
     app = Flask(__name__)
@@ -22,12 +23,12 @@ def create_app():
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = 'nikitapowar09@gmail.com'
-    app.config['MAIL_PASSWORD'] = 'idcb roep ozwb mjjd'
-    app.config['MAIL_DEFAULT_SENDER'] = 'your-email@gmail.com'
+    app.config['MAIL_PASSWORD'] = 'thfo xepy sauu ynnt'
+    app.config['MAIL_DEFAULT_SENDER'] = 'nikitapowar09@gmail.com'
     app.config['SECRET_KEY'] = 'Nikita@09'  
     basedir = os.path.abspath(os.path.dirname(__file__))
     db_path = os.path.join(basedir, "instance", "office_management.db")
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///office_management.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Debugging
@@ -35,7 +36,6 @@ def create_app():
         print("Database URI Set:", app.config['SQLALCHEMY_DATABASE_URI'])
     else:
         print("❌ ERROR: SQLALCHEMY_DATABASE_URI is NOT set!")
-
 
     # Initialize database
     db.init_app(app)
@@ -64,6 +64,21 @@ def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     return re.match(pattern, email)
 
+def send_verification_email(user_email, token):
+    verification_url = f"http://localhost:5000/verify_email/{token}"  # Modify with your actual domain
+
+    # Create the email message
+    msg = Message(
+        'Verify Your Email',
+        recipients=[user_email]
+    )
+    msg.body = f"Click the link to verify your email: {verification_url}"
+
+    # Send the email
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error sending email: {e}")
 
 @app.route('/')
 def landing_page():
@@ -96,10 +111,6 @@ def login():
             flash('No account found with that email.', 'danger')
             return redirect(url_for('login'))
 
-        if not user.is_verified:
-            flash('Please verify your email before logging in.', 'warning')
-            return redirect(url_for('login'))
-        
         if user.check_password(password):
             login_user(user)  
             flash('Login successful!', 'success')
@@ -111,113 +122,7 @@ def login():
         else:
             flash('Incorrect password.', 'danger')
 
-    return render_template('login.html', user=None)   
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    # Fetch employees who do not have an associated user account
-    employees = Employee.query.filter(~Employee.user.has()).all()
-
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
-        role = request.form.get('role')
-        employee_id = request.form.get('employee_id') if role == 'employee' else None  
-
-        # Ensure valid role selection
-        if role not in ['admin', 'employee']:
-            flash('Invalid role selected.', 'danger')
-            return render_template('signup.html', employees=employees)
-
-        # Ensure username is unique
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists.', 'danger')
-            return render_template('signup.html', employees=employees)
-
-        # Ensure password confirmation
-        if password != confirm_password:
-            flash('Passwords do not match.', 'danger')
-            return render_template('signup.html', employees=employees)
-
-        # Employee-specific checks
-        if role == 'employee':
-            if not employee_id:
-                flash('Employee ID is required for employee role.', 'danger')
-                return render_template('signup.html', employees=employees)
-
-            # Fetch employee from DB
-            employee = Employee.query.get(employee_id)
-            if not employee:
-                flash('Invalid Employee ID.', 'danger')
-                return render_template('signup.html', employees=employees)
-
-            # Check if employee is already linked to a user
-            if employee.user is not None:
-                flash('Employee already has a user account.', 'danger')
-                return render_template('signup.html', employees=employees)
-
-            # Use employee's email for the user account
-            email = employee.email
-        else:
-            email = request.form.get('email')
-
-            # Ensure email is unique
-            if User.query.filter_by(email=email).first():
-                flash('Email already exists.', 'danger')
-                return render_template('signup.html', employees=employees)
-
-        # Generate verification token
-        verification_token = User.generate_verification_token()
-
-        # Create new user entry only after all checks pass
-        new_user = User(
-            username=username, 
-            email=email, 
-            role=role, 
-            employee_id=employee_id, 
-            email_verification_token=verification_token
-        )
-
-        new_user.set_password(password)  # Store hashed password
-        db.session.add(new_user)
-
-        # Link user to employee if applicable
-        if role == 'employee':
-            employee.user = new_user  
-
-        db.session.commit()
-
-        send_verification_email(email, verification_token)
-
-        flash('Signup successful! Please check your email to verify your account.', 'success')
-        return redirect(url_for('verify_email_page'))  
-
-    return render_template('signup.html', employees=employees)
-
-# Function to send a verification email
-def send_verification_email(user_email, token):
-    verification_url = f"http://localhost:5000/verify_email/{token}"
-    msg = Message(
-        'Verify Your Email',
-        sender='noreply@yourwebsite.com',
-        recipients=[user_email]
-    )
-    msg.body = f"Click the link to verify your email: {verification_url}"
-    mail.send(msg)
-
-@app.route('/resend_verification', methods=['POST'])
-def resend_verification():
-    email = request.form.get('email')
-    user = User.query.filter_by(email=email).first()
-
-    if user and not user.is_verified:
-        send_verification_email(email)  # Resend email
-        flash('A new verification email has been sent.', 'info')
-    else:
-        flash('Invalid request or email already verified.', 'danger')
-
-    return redirect(url_for('verify_email_page'))
+    return render_template('login.html', user=None) 
 
 # Logout
 @app.route('/logout')
@@ -251,23 +156,39 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 # Reset Password
+@app.route('/reset_password', methods=['GET', 'POST'])
+def request_password_reset():
+    if request.method == 'POST':
+        email = request.form['email']
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            send_reset_email(email)
+            flash('An email with reset instructions has been sent.', 'info')
+        else:
+            flash('No account found with that email.', 'danger')
+
+    return render_template('reset_request.html')
+
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    user = User.query.filter_by(password_reset_token=token).first()
-    if user and user.password_reset_expiration > datetime.utcnow():
-        if request.method == 'POST':
-            password = request.form['password']
-            user.set_password(password)
-            user.password_reset_token = None
-            user.password_reset_expiration = None
+    email = verify_reset_token(token)
+
+    if not email:
+        flash('Invalid or expired token.', 'danger')
+        return redirect(url_for('request_password_reset'))
+
+    if request.method == 'POST':
+        new_password = request.form['password']
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            user.password_hash = generate_password_hash(new_password)
             db.session.commit()
-            flash('Password reset successfully!', 'success')
+            flash('Password updated successfully! You can now log in.', 'success')
             return redirect(url_for('login'))
 
-        return render_template('reset_password.html', token=token)
-    else:
-        flash('Invalid or expired reset link.', 'danger')
-        return redirect(url_for('login'))
+    return render_template('reset_form.html')
 
 @app.route('/add_department', methods=['GET', 'POST'])
 def add_department():
@@ -290,12 +211,6 @@ def add_department():
 
     return render_template('add_department.html')
 
-@app.route('/employees')
-@login_required
-def employee_list():
-    employees = Employee.query.all()  # Fetches full Employee objects
-    return render_template('employee_list.html', employees=employees)
-
 @app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
@@ -310,11 +225,18 @@ def admin_dashboard():
 def employee_dashboard():
     print(f"Employee Dashboard - Current User: {current_user.email}, Role: {current_user.role}")  # Debugging
     return render_template('employee_dashboard.html')
+
+@app.route('/employees')
+@login_required
+def employee_list():
+    employees = Employee.query.all()  # Fetches full Employee objects
+    return render_template('employee_list.html', employees=employees)
+
 @app.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_create():
     departments = Department.query.all()
-    
+
     if request.method == 'POST':
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -326,20 +248,20 @@ def employee_create():
         address = request.form['address']
         is_active = True if 'is_active' in request.form else False
 
-        # ✅ Check if the employee already has a user account
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            flash('Employee already has a user account.', 'danger')
-            return redirect(url_for('employee_create'))  # Redirect to form
+        # ✅ Check if the employee already exists
+        existing_employee = Employee.query.filter_by(email=email).first()
+        if existing_employee:
+            flash('Employee already exists.', 'danger')
+            return redirect(url_for('employee_create'))
 
-        # ✅ Auto-generate username if not provided
-        username = request.form.get('username', email.split('@')[0])  
+        # ✅ Generate username and temporary password
+        username = request.form.get('username', email.split('@')[0])
+        temp_password = generate_temp_password()
+        password_hash = generate_password_hash(temp_password)
 
-        password_hash = generate_password_hash("defaultpassword")  
-
-        # ✅ Create Employee
+        # ✅ Create Employee record
         new_employee = Employee(
-            username=username,  
+            username=username,
             first_name=first_name,
             last_name=last_name,
             department_id=department_id,
@@ -350,29 +272,61 @@ def employee_create():
             address=address,
             is_active=is_active
         )
-        
+
         try:
             db.session.add(new_employee)
-            db.session.flush()  # Flush to get employee_id
-            
-            # ✅ Create User for the Employee
+            db.session.commit()  # Ensure Employee is saved first
+            print("✅ Employee saved successfully.")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Employee creation failed: {e}")
+            flash(f'Error creating employee: {e}', 'danger')
+            return redirect(url_for('employee_create'))
+
+        # ✅ Fetch Employee again to ensure it exists in DB
+        saved_employee = Employee.query.filter_by(email=email).first()
+        if not saved_employee:
+            flash('Employee record not found after commit.', 'danger')
+            return redirect(url_for('employee_create'))
+
+        # ✅ Check if User with this employee_id already exists
+        existing_user = User.query.filter_by(employee_id=saved_employee.employee_id).first()
+        if existing_user:
+            flash('This Employee already has a User account.', 'danger')
+            return redirect(url_for('employee_create'))
+
+        # ✅ Create User record for login
+        try:
             new_user = User(
-                username=username,  
+                username=username,
                 email=email,
                 password_hash=password_hash,
                 role="employee",
                 is_verified=True,
-                employee_id=new_employee.employee_id  # Link to Employee
+                employee_id=saved_employee.employee_id
             )
-            
+
             db.session.add(new_user)
-            db.session.commit()  
-            
-            flash('Employee created successfully!', 'success')
-            return redirect(url_for('employee_list'))
+            db.session.commit()
+            print("✅ User account created successfully.")
+
         except Exception as e:
             db.session.rollback()
-            flash(f'Error creating employee: {e}', 'danger')
+            print(f"❌ User creation failed: {e}")
+            flash(f'Error creating user account: {e}', 'danger')
+            return redirect(url_for('employee_create'))
+
+        # ✅ Send login credentials email AFTER successful transactions
+        email_sent = send_login_email(email, username, temp_password)
+        if email_sent:
+            flash('Login credentials sent to employee email successfully!', 'success')
+            print("📧 Email sent successfully.")
+        else:
+            flash('Failed to send login email.', 'danger')
+            print("❌ Email failed to send.")
+
+        return redirect(url_for('employee_list'))
 
     return render_template('employee_form.html', departments=departments)
 
@@ -399,7 +353,8 @@ def employee_edit(employee_id):
             return redirect(url_for('employee_list'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error updating employee: {e}', 'danger')
+            print('Error:', e)
+            flash(f'Error creating employee: {e}', 'danger')
 
     return render_template('employee_form.html', employee=employee, departments = departments)
 
@@ -520,6 +475,75 @@ def employee_meetings():
     employee_id = current_user.employee_id
     meetings = db.session.query(Meeting).join(MeetingAttendee).filter(MeetingAttendee.employee_id == employee_id).all()
     return render_template('employee_meeting.html', meetings=meetings)
+
+#---------------------leave----------
+@app.route('/leave_form')
+def leave_form():
+    # Fetch the latest leave requests for the employee
+    emp_id = session.get('emp_id')  # Assuming you have employee logged in and session stores emp_id
+    if emp_id:
+        all_requests = AdminLeaveApproval.query.filter_by(emp_id=emp_id).order_by(AdminLeaveApproval.leave_date.desc()).all()
+    else:
+        all_requests = []
+    
+    return render_template('Leave_application.html', requests=all_requests)
+ # create this file in templates folder
+
+@app.route('/request_holiday', methods=['POST'])
+def request_holiday():
+    emp_id = request.form['emp_id']
+    name = request.form['name']
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    reason = request.form['reason']
+
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    current_date = start_date_obj
+    while current_date <= end_date_obj:
+        leave = AdminLeaveApproval(
+            employee_id=emp_id,
+            name=name,
+            leave_date=current_date,
+            reason=reason
+        )
+        db.session.add(leave)
+        current_date += timedelta(days=1)
+
+    db.session.commit()
+
+    flash("Leave request submitted successfully!", "success")  
+    return redirect(url_for('leave_form'))  
+
+  
+@app.route('/approve_holiday/<int:leave_id>')
+def approve_holiday(leave_id):
+    leave = AdminLeaveApproval.query.get_or_404(leave_id)
+    leave.status = 'Approved'
+    leave.action = 'Approved'
+    db.session.commit()
+    return redirect(url_for('manage_leaves'))
+
+@app.route('/reject_holiday/<int:leave_id>')
+def reject_holiday(leave_id):
+    leave = AdminLeaveApproval.query.get_or_404(leave_id)
+    leave.status = 'Rejected'
+    leave.action = 'Rejected'
+    db.session.commit()
+    return redirect(url_for('manage_leaves'))
+
+@app.route('/view_leave_status')
+@login_required
+def view_leave_status():
+    emp_id = session.get('emp_id')
+    leaves = AdminLeaveApproval.query.filter_by(emp_id=emp_id).all()
+    return render_template('view_leave_status.html', leaves=leaves)
+
+@app.route('/manage_leaves')
+def manage_leaves():
+    leaves = AdminLeaveApproval.query.order_by(AdminLeaveApproval.leave_date.desc()).all()
+    return render_template('Leave_Request.html', leaves=leaves)
 
 if __name__ == '__main__':
     with app.app_context():
