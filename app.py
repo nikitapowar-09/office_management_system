@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-from flask import Flask, render_template, url_for
+from flask import Flask, render_template, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,11 +9,11 @@ from itsdangerous import URLSafeTimedSerializer
 import smtplib
 from flask_mail import Mail, Message
 from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token
-from datetime import datetime
+from datetime import datetime, timedelta
 import re,os
 import uuid
 from email.mime.text import MIMEText
-from models import db, Employee, Department, User, Project, Task, Meeting, MeetingAttendee, Attendance, Notification, Admin, AdminLeaveApproval 
+from models import db, Employee, Department, User, Project, Task, Meeting, MeetingAttendee, Attendance, Notification, Admin, AdminLeaveApproval,LeaveRequest
 
 def create_app():
     app = Flask(__name__)
@@ -42,7 +42,7 @@ def create_app():
 
     # Initialize extensions inside create_app()
     Migrate(app, db)
-    CSRFProtect(app)
+    # CSRFProtect(app)
     mail = Mail(app)
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -98,13 +98,13 @@ def verify_email(token):
     flash('Invalid or expired token.', 'danger')
     return redirect(url_for('login'))
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    print("Session after login:", session)
+
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
         user = User.query.filter_by(email=email).first()
         
         if not user:
@@ -118,11 +118,18 @@ def login():
             user.last_login = datetime.utcnow()
             db.session.commit()
 
+            # Store employee_id and username in session
+            session['_user_id'] = user.user_id
+            session['employee_id'] = user.user_id  # Store employee_id
+            session['username'] = user.username  # Store username (new)
+
             return redirect(url_for('admin_dashboard')) if user.role == 'admin' else redirect(url_for('employee_dashboard'))
         else:
             flash('Incorrect password.', 'danger')
 
-    return render_template('login.html', user=None) 
+    return render_template('login.html', user=None)
+
+
 
 # Logout
 @app.route('/logout')
@@ -478,33 +485,37 @@ def employee_meetings():
 
 #---------------------leave----------
 @app.route('/leave_form')
+@login_required
 def leave_form():
-    # Fetch the latest leave requests for the employee
-    emp_id = session.get('emp_id')  # Assuming you have employee logged in and session stores emp_id
-    if emp_id:
-        all_requests = AdminLeaveApproval.query.filter_by(emp_id=emp_id).order_by(AdminLeaveApproval.leave_date.desc()).all()
-    else:
-        all_requests = []
-    
-    return render_template('Leave_application.html', requests=all_requests)
- # create this file in templates folder
+    employee_id = session.get('employee_id')
+    if not employee_id:
+        flash("Session error: Employee ID not found!", "danger")
+        return redirect(url_for('employee_dashboard'))
+
+    all_requests = AdminLeaveApproval.query.filter_by(employee_id=employee_id).order_by(AdminLeaveApproval.leave_date.desc()).all()
+    return render_template('Leave_application.html', employee_id=employee_id, requests=all_requests)
 
 @app.route('/request_holiday', methods=['POST'])
+@login_required
 def request_holiday():
-    emp_id = request.form['emp_id']
-    name = request.form['name']
-    start_date = request.form['start_date']
-    end_date = request.form['end_date']
-    reason = request.form['reason']
+    employee_id = request.form.get('employee_id')
+    username = request.form.get('username')
+    start_date = request.form.get('start_date')
+    end_date = request.form.get('end_date')
+    reason = request.form.get('reason')
 
+    if not start_date or not end_date:
+        flash("Start and end dates are required!", "danger")
+        return redirect(url_for('leave_form'))
+    
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     current_date = start_date_obj
     while current_date <= end_date_obj:
         leave = AdminLeaveApproval(
-            employee_id=emp_id,
-            name=name,
+            employee_id=employee_id,
+            username=username,
             leave_date=current_date,
             reason=reason
         )
@@ -512,38 +523,43 @@ def request_holiday():
         current_date += timedelta(days=1)
 
     db.session.commit()
-
     flash("Leave request submitted successfully!", "success")  
-    return redirect(url_for('leave_form'))  
+    return redirect(url_for('view_leave_status'))
 
-  
+@app.route('/view_leave_status')
+@login_required
+def view_leave_status():
+    employee_id = session.get('employee_id')
+    leaves = AdminLeaveApproval.query.filter_by(employee_id=employee_id).order_by(AdminLeaveApproval.leave_date.desc()).all()
+    return render_template('view_leave_status.html', leaves=leaves)
+
+# -------------------- ADMIN SIDE --------------------
+
+@app.route('/manage_leaves')
+@login_required
+def manage_leaves():
+    leaves = AdminLeaveApproval.query.order_by(AdminLeaveApproval.leave_date.desc()).all()
+    return render_template('Leave_Request.html', leaves=leaves)
+
 @app.route('/approve_holiday/<int:leave_id>')
+@login_required
 def approve_holiday(leave_id):
     leave = AdminLeaveApproval.query.get_or_404(leave_id)
     leave.status = 'Approved'
     leave.action = 'Approved'
     db.session.commit()
+    flash("Leave approved.", "success")
     return redirect(url_for('manage_leaves'))
 
 @app.route('/reject_holiday/<int:leave_id>')
+@login_required
 def reject_holiday(leave_id):
     leave = AdminLeaveApproval.query.get_or_404(leave_id)
     leave.status = 'Rejected'
     leave.action = 'Rejected'
     db.session.commit()
+    flash("Leave rejected.", "danger")
     return redirect(url_for('manage_leaves'))
-
-@app.route('/view_leave_status')
-@login_required
-def view_leave_status():
-    emp_id = session.get('emp_id')
-    leaves = AdminLeaveApproval.query.filter_by(emp_id=emp_id).all()
-    return render_template('view_leave_status.html', leaves=leaves)
-
-@app.route('/manage_leaves')
-def manage_leaves():
-    leaves = AdminLeaveApproval.query.order_by(AdminLeaveApproval.leave_date.desc()).all()
-    return render_template('Leave_Request.html', leaves=leaves)
 
 if __name__ == '__main__':
     with app.app_context():

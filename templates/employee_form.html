@@ -7,7 +7,7 @@
             {{ employee.first_name + " " + employee.last_name if employee else "New Employee" }}
         </h1>
         <form method="POST" class="border p-4 rounded shadow bg-white">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+           
 
             <div class="form-group">
                 <label for="first_name">First Name:</label>
