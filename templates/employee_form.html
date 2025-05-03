@@ -1,7 +1,19 @@
 {% extends 'admin_dashboard.html' %}
 
 {% block content %}
-<div class="container d-flex justify-content-center mt-4 mb-5">  {# Added bottom margin #}
+<div class="container d-flex justify-content-center mt-4 mb-5">  
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
     <div class="col-md-8 col-lg-6">
         <h1 class="text-center">
             {{ employee.first_name + " " + employee.last_name if employee else "New Employee" }}

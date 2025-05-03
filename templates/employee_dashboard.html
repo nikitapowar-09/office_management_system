@@ -42,7 +42,7 @@
     </nav>
 
     <!-- Right Offcanvas Menu -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" style="width: 300px;">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title">Menu</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
@@ -64,10 +64,20 @@
 
     <!-- Main Content -->
     <div class="container mt-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
         <h1 class="text-center">Welcome, {{ current_user.username }}!</h1>
        
-            
-                
                 <!-- Pending Tasks Section -->
                 <div class="d-flex justify-content-center">
                 <div class="col-md-8">

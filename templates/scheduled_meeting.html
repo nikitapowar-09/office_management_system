@@ -4,6 +4,17 @@
 
 <!-- Meeting Form -->
 <div class="card p-4 mt-3">
+     <!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    {% for category, message in messages %}
+        <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
     <h3 style="text-align: center;">Schedule a Meeting</h3>
     <div class="container d-flex justify-content-center align-items-center mt-4     ">
         <div class="col-md-6 shadow-lg p-4 rounded">

@@ -37,9 +37,20 @@ table tbody tr:hover {
   background-color: #d3f9d8;
 }
 </style>
-<h2>Leave Requests</h2>
-
 {% if leaves %}
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<h2>Leave Requests</h2>
 <table border="1" cellpadding="10" cellspacing="0">
   <thead>
     <tr>

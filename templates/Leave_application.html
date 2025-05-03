@@ -43,7 +43,7 @@
     </nav>
 
     <!-- Right Offcanvas Menu -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" style="width: 300px;">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title">Menu</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
@@ -66,7 +66,18 @@
     <div class="container d-flex justify-content-center align-items-center mt-4     ">
         <div class="col-md-6 shadow-lg p-4 rounded">
             <form action="/request_holiday" method="POST">
-               
+               <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+
                 <div class="form-group">
                     <label for="employee_id">Employee ID:</label>
                     <input type="text" name="employee_id" class="form-control" value="{{ session['employee_id'] }}" readonly>

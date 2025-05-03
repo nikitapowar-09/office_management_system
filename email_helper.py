@@ -1,8 +1,11 @@
 import random
 import string
+import traceback
+from flask import url_for
 from flask_mail import Message
 from config import app
 from itsdangerous import URLSafeTimedSerializer
+from config import mail,app
 
 def generate_temp_password(length=10):
     """Generates a random temporary password"""
@@ -70,31 +73,69 @@ def send_login_email(email, username, password):
 
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+#----------------Reset-------------------------
+
+# Initialize serializer
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
+# Generate token
 def generate_reset_token(email):
     return serializer.dumps(email, salt='password-reset-salt')
 
+# Verify token
 def verify_reset_token(token, expiration=3600):
     try:
         email = serializer.loads(token, salt='password-reset-salt', max_age=expiration)
-    except Exception:
+        return email
+    except Exception as e:
+        print(f"Token verification failed: {e}")
         return None
-    return email
 
+# Send reset email
 def send_reset_email(email):
-    token = generate_reset_token(email)
-    reset_url = url_for('reset_password', token=token, _external=True)
+    try:
+        print("Sending email to:", email)
+        token = generate_reset_token(email)
+        reset_url = url_for('reset_password', token=token, _external=True)
 
-    msg = Message('Password Reset Request', sender='your-email@gmail.com', recipients=[email])
+        msg = Message(
+            subject='Password Reset Request',
+            sender=app.config['MAIL_DEFAULT_SENDER'],
+            recipients=[email]
+        )
+        msg.body = f"""
+        Hello,
+
+        You requested to reset your password. Click the link below to reset your password:
+
+        {reset_url}
+
+        This link is valid for 1 hour. If you did not request this, please ignore this email.
+
+        Regards,
+        Support Team
+        """
+
+        mail.send(msg)
+        print("✅ Email sent.")
+    except Exception as e:
+        print(f"❌ Error sending reset email: {e}")
+        traceback.print_exc()
+
+def send_password_change_confirmation(email):
+    msg = Message('Your Password Was Successfully Changed',
+                  recipients=[email])
     msg.body = f"""
     Hello,
 
-    You requested to reset your password. Click the link below to reset your password:
+    This is to confirm that your password has been changed successfully.
 
-    {reset_url}
-
-    If you did not request this, please ignore this email.
+    If you did not make this change, please contact support immediately.
 
     Regards,
-    Support Team
+     Support Team
     """
-    mail.send(msg)
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error sending password change confirmation: {e}")

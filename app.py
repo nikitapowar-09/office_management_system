@@ -9,7 +9,7 @@ from itsdangerous import URLSafeTimedSerializer
 import smtplib
 from sqlalchemy.orm import joinedload
 from flask_mail import Mail, Message
-from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token,send_email
+from email_helper import generate_temp_password, send_login_email, send_reset_email, generate_reset_token,send_email, verify_reset_token, send_password_change_confirmation
 from datetime import datetime, timedelta
 import re,os
 import uuid
@@ -81,6 +81,8 @@ def send_verification_email(user_email, token):
     except Exception as e:
         print(f"Error sending email: {e}")
 
+#-----------------login-----------------
+
 @app.route('/')
 def landing_page():
     return render_template('landing_page.html')
@@ -124,15 +126,15 @@ def login():
             session['employee_id'] = user.user_id  # Store employee_id
             session['username'] = user.username  # Store username (new)
 
+            if user.role == 'admin':
+                session['admin_id'] = user.user_id 
+
             return redirect(url_for('admin_dashboard')) if user.role == 'admin' else redirect(url_for('employee_dashboard'))
         else:
             flash('Incorrect password.', 'danger')
 
     return render_template('login.html', user=None)
 
-
-
-# Logout
 @app.route('/logout')
 @login_required
 def logout():
@@ -140,30 +142,38 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
 
-# Forgot Password
-@app.route('/forgot_password', methods=['GET', 'POST'])
-def forgot_password():
+#--------------------------Reset Pssword------------------------------
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    email = verify_reset_token(token)
+
+    if not email:
+        flash('Invalid or expired token.', 'danger')
+        return redirect(url_for('request_password_reset'))
+    
     if request.method == 'POST':
-        username = request.form['username']
-        user = User.query.filter_by(username=username).first()
-        if user:
-            token = secrets.token_urlsafe(16)
-            # Store the token with the user (e.g., in a password_reset_token column)
-            user.password_reset_token = token
-            user.password_reset_expiration = datetime.utcnow() + datetime.timedelta(hours=1) #one hour expiration
-            db.session.commit()
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
 
-            #send email
-            send_reset_email(user.email, token) #Implement this function
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(request.url)
 
-            flash('Reset link sent to your email.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash("Username not found", 'danger')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for('request_password_reset'))
 
-    return render_template('forgot_password.html')
+    if request.method == 'POST':
+        new_password = request.form['password']
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        send_password_change_confirmation(email)
+        flash('Password updated successfully! You can now log in.', 'success')
+        return redirect(url_for('login'))
 
-# Reset Password
+    return render_template('reset_password_form.html')
+
 @app.route('/reset_password', methods=['GET', 'POST'])
 def request_password_reset():
     if request.method == 'POST':
@@ -173,31 +183,13 @@ def request_password_reset():
         if user:
             send_reset_email(email)
             flash('An email with reset instructions has been sent.', 'info')
+            return redirect(url_for('login'))
         else:
             flash('No account found with that email.', 'danger')
 
     return render_template('reset_request.html')
 
-@app.route('/reset_password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    email = verify_reset_token(token)
-
-    if not email:
-        flash('Invalid or expired token.', 'danger')
-        return redirect(url_for('request_password_reset'))
-
-    if request.method == 'POST':
-        new_password = request.form['password']
-        user = User.query.filter_by(email=email).first()
-
-        if user:
-            user.password_hash = generate_password_hash(new_password)
-            db.session.commit()
-            flash('Password updated successfully! You can now log in.', 'success')
-            return redirect(url_for('login'))
-
-    return render_template('reset_form.html')
-
+#------------------------Add department--------------------
 @app.route('/add_department', methods=['GET', 'POST'])
 def add_department():
     if request.method == 'POST':
@@ -219,6 +211,8 @@ def add_department():
 
     return render_template('add_department.html')
 
+#--------------------Dashboard---------------------
+
 @app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
@@ -233,6 +227,8 @@ def admin_dashboard():
 def employee_dashboard():
     print(f"Employee Dashboard - Current User: {current_user.email}, Role: {current_user.role}")  # Debugging
     return render_template('employee_dashboard.html')
+
+#----------------------------manage employees------------------
 
 @app.route('/employees')
 @login_required
@@ -379,7 +375,7 @@ def employee_delete(employee_id):
         flash(f'Error deleting employee: {e}', 'danger')
     return redirect(url_for('employee_list'))
 
-# Mark Attendance (Employee)
+#-------------------- Mark Attendance-----------------------
 @app.route('/attendance', methods=['GET', 'POST'])
 @login_required
 def mark_attendance():
@@ -399,19 +395,20 @@ def mark_attendance():
 
     if request.method == 'POST':
         action = request.form.get('action')
+        current_time = datetime.utcnow().time().replace(microsecond=0)  # ⬅️ Remove microseconds here
 
         if action == 'check-in' and not attendance:
             new_attendance = Attendance(
                 employee_id=employee.employee_id,
                 date=today,
-                time_in=datetime.utcnow().time()
+                time_in=current_time
             )
             db.session.add(new_attendance)
             db.session.commit()
             flash("Checked in successfully!", "success")
 
         elif action == 'check-out' and attendance and not attendance.time_out:
-            attendance.time_out = datetime.utcnow().time()
+            attendance.time_out = current_time  # ⬅️ Use the same microsecond-free time
             db.session.commit()
             flash("Checked out successfully!", "success")
 
@@ -421,6 +418,7 @@ def mark_attendance():
         return redirect(url_for('mark_attendance'))
 
     return render_template('Emp_Attendance.html', attendance=attendance)
+
 
 @app.route('/admin/attendance')
 @login_required
@@ -433,47 +431,56 @@ def admin_attendance():
     return render_template('admin_attendance.html', attendance_records=attendance_records)
 
 #-----------------meetings---------------------
-from datetime import datetime
 
 @app.route('/schedule_meeting', methods=['GET', 'POST'])
 def schedule_meeting():
     if request.method == 'POST':
-        title = request.form.get('title')
-        date_time_str = request.form.get('date_time')
-        location = request.form.get('location')
-        attendee_ids = request.form.getlist('attendees')
-
-        if not title or not date_time_str or not location:
-            return "Missing required fields", 400
-
-        # Convert string to datetime object
         try:
-            date_time = datetime.strptime(date_time_str, '%Y-%m-%dT%H:%M')
-        except ValueError:
-            return "Invalid date format", 400
+            title = request.form.get('title')
+            date_time_str = request.form.get('date_time')
+            location = request.form.get('location')
+            attendee_ids = request.form.getlist('attendees')
 
-        fake_link = "https://fakemeetinglink.com"
-        organizer_id = session.get('admin_id')
-        if not organizer_id:
-            return "Organizer (admin) not logged in", 403
+            if not title or not date_time_str or not location:
+                return "Missing required fields", 400
 
-        meeting = Meeting(title=title, date_time=date_time, location=location, link=fake_link, organizer_id=organizer_id)
-        db.session.add(meeting)
-        db.session.commit()
+            try:
+                date_time = datetime.strptime(date_time_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                return "Invalid date format", 400
 
-        for emp_id in attendee_ids:
-            employee = Employee.query.get(emp_id)
-            if employee:
-                attendee = MeetingAttendee(meeting_id=meeting.id, employee_id=employee.employee_id)
-                db.session.add(attendee)
+            fake_link = "https://fakemeetinglink.com"
+            organizer_id = session.get('admin_id')
+            if not organizer_id:
+                return "Organizer (admin) not logged in", 403
 
-                send_email(employee.email, f"{employee.first_name} {employee.last_name}", title, date_time, fake_link)
+            meeting = Meeting(title=title, date_time=date_time, location=location, link=fake_link, organizer_id=organizer_id)
+            db.session.add(meeting)
+            db.session.commit()
 
-        db.session.commit()
-        return redirect(url_for('admin_dashboard'))
+            for emp_id in attendee_ids:
+                try:
+                    emp_id = int(emp_id)
+                    employee = Employee.query.get(emp_id)
+                    if employee:
+                        attendee = MeetingAttendee(meeting_id=meeting.id, employee_id=employee.employee_id)
+                        db.session.add(attendee)
+                        # Optional: wrap this in try/except if send_email fails
+                        send_email(employee.email, f"{employee.first_name} {employee.last_name}", title, date_time, fake_link)
+                except Exception as e:
+                    print(f"Error adding attendee {emp_id}: {e}")
 
+            db.session.commit()
+            return redirect(url_for('admin_dashboard'))
+
+        except Exception as e:
+            print(f"Error during POST in schedule_meeting: {e}")
+            return f"Internal Server Error: {str(e)}", 500
+
+    # GET method
     employees = Employee.query.all()
     return render_template('scheduled_meeting.html', employees=employees)
+
 
 @app.route('/employee/meetings')
 @login_required

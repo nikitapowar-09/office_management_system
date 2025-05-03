@@ -4,13 +4,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leave Form</title>
+    <title>Mark Attendance</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
 </head>
 <body >
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="mb-3">
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+        </div>
+    {% endif %}
+    {% endwith %}
+
     <nav class="navbar navbar-expand-lg bg-dark navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">Dashboard</a>
@@ -65,7 +79,7 @@
 <div class="container mt-4">
     <!-- Attendance Section -->
     <h2 style="text-align: center;">Mark Attendance</h2>
-    <div class="card p-4 bg-white border shadow-sm">
+    <div class="card p-4 bg-white border shadow-sm d-flex  align-items-center vh-50">
         <p><strong>Date:</strong> {{ attendance.date if attendance else "Not marked yet" }}</p>
         <p><strong>Time In:</strong> {{ attendance.time_in if attendance else "Not checked in" }}</p>
         <p><strong>Time Out:</strong> {{ attendance.time_out if attendance else "Not checked out" }}</p>
